@@ -10,7 +10,7 @@ RUN apk update && apk add --no-cache \
 WORKDIR /tmp
 RUN git clone https://github.com/remarkov/phev2mqtt.git
 COPY --from=golang:alpine /usr/local/go/ /usr/local/go/
-RUN cd /tmp/phev2mqtt && git branch debug \
+RUN cd /tmp/phev2mqtt && git checkout debug \
     /usr/local/go/bin/go build
 
 FROM $BUILD_FROM
