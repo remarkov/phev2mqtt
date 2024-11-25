@@ -1,0 +1,23 @@
+name: "Outlander PHEV"
+description: "Mitsubishi Outlander PHEV to MQTT bridge"
+version: "1.5"
+slug: "phev"
+init: false
+arch:
+  - armhf
+  - armv7
+  - aarch64
+  - amd64
+  - i386
+startup: "application"
+boot: "auto"
+options:
+  mqtt_server: null
+  mqtt_user: null
+  mqtt_password: null
+  debug: false
+schema:
+  mqtt_server: str
+  mqtt_user: str
+  mqtt_password: str
+  debug: bool
