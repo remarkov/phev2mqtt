@@ -18,6 +18,7 @@ echo Starting phev2mqtt
 /opt/phev2mqtt \
         client \
         mqtt \
+        -v debug \
         --mqtt_server "tcp://${mqtt_server}/" \
         --mqtt_username "${mqtt_user}" \
         --mqtt_password "${mqtt_password}"
