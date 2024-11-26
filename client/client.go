@@ -305,7 +305,7 @@ func (c *Client) reader() {
 			if !c.closed {
 				log.Debug("%%PHEV_TCP_READER_ERROR%%: ", err)
 			}
-			log.Debug("%PHEV_TCP_READER_CLOSE%")
+			log.Debug("%PHEV_TCP_READER_CLOSE%", err)
 			c.conn.Close()
 			close(c.Recv)
 			c.lMu.Lock()
