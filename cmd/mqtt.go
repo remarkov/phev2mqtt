@@ -20,12 +20,13 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
-	"github.com/buxtronix/phev2mqtt/client"
-	"github.com/buxtronix/phev2mqtt/protocol"
-	"github.com/spf13/cobra"
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/buxtronix/phev2mqtt/client"
+	"github.com/buxtronix/phev2mqtt/protocol"
+	"github.com/spf13/cobra"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	log "github.com/sirupsen/logrus"
@@ -143,7 +144,7 @@ func (m *mqttClient) topic(topic string) string {
 func (m *mqttClient) Run(cmd *cobra.Command, args []string) error {
 	var err error
 
-	m.enabled = true  // Default.
+	m.enabled = true // Default.
 	mqttServer, _ := cmd.Flags().GetString("mqtt_server")
 	mqttUsername, _ := cmd.Flags().GetString("mqtt_username")
 	mqttPassword, _ := cmd.Flags().GetString("mqtt_password")
@@ -336,6 +337,7 @@ func (m *mqttClient) handleIncomingMqtt(mqtt_client mqtt.Client, msg mqtt.Messag
 func (m *mqttClient) handlePhev(cmd *cobra.Command) error {
 	var err error
 	address, _ := cmd.Flags().GetString("address")
+	log.Debugf("Got address for PHEV client as %s", address)
 	m.phev, err = client.New(client.AddressOption(address))
 	if err != nil {
 		return err
