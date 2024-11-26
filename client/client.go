@@ -5,10 +5,11 @@ package client
 import (
 	"encoding/hex"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"net"
 	"sync"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/buxtronix/phev2mqtt/protocol"
 )
@@ -161,19 +162,18 @@ var startTimeout = 20 * time.Second
 func (c *Client) Start() error {
 	log.Debug("%%PHEV_START_AWAIT%%")
 	startTimer := time.After(startTimeout)
-	for {
-		select {
-		case _, ok := <-c.started:
-			if !ok {
-				log.Debug("%%PHEV_START_CLOSED%%")
-				return fmt.Errorf("receiver closed before getting start request")
-			}
-			log.Debug("%%PHEV_START_DONE%%")
-		case <-startTimer:
-			log.Debug("%%PHEV_START_TIMEOUT%%")
-			return fmt.Errorf("timed out waiting for start")
+
+	select {
+	case _, ok := <-c.started:
+		if !ok {
+			log.Debug("%%PHEV_START_CLOSED%%")
+			return fmt.Errorf("receiver closed before getting start request")
 		}
+		log.Debug("%%PHEV_START_DONE%%")
 		return nil
+	case <-startTimer:
+		log.Debug("%%PHEV_START_TIMEOUT%%")
+		return fmt.Errorf("timed out waiting for start")
 	}
 }
 
