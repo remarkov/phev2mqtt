@@ -8,9 +8,10 @@ RUN apk update && apk add --no-cache \
 	libpcap-dev
 
 WORKDIR /tmp
-RUN git clone https://github.com/remarkov/phev2mqtt.git
+ADD https://api.github.com/repos/remarkov/phev2mqtt/git/refs/heads/debug version.json
+RUN git clone -b debug https://github.com/remarkov/phev2mqtt.git
 COPY --from=golang:alpine /usr/local/go/ /usr/local/go/
-RUN cd /tmp/phev2mqtt && git checkout debug && \
+RUN cd /tmp/phev2mqtt && \
     /usr/local/go/bin/go build
 
 FROM $BUILD_FROM
