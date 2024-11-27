@@ -97,7 +97,7 @@ func restartWifi(cmd *cobra.Command) error {
 	if err != nil {
 		return err
 	}
-	if time.Now().Sub(lastWifiRestart) < restartRetryTime {
+	if time.Since(lastWifiRestart) < restartRetryTime {
 		return nil
 	}
 	defer func() {
@@ -190,11 +190,11 @@ func (m *mqttClient) Run(cmd *cobra.Command, args []string) error {
 				log.Error(err)
 			}
 			// Publish as offline if last connection was >30s ago.
-			if time.Now().Sub(m.lastConnect) > 30*time.Second {
+			if time.Since(m.lastConnect) > 30*time.Second {
 				m.client.Publish(m.topic("/available"), 0, true, "offline")
 			}
 			// Restart Wifi interface if > wifi_restart_time.
-			if wifiRestartTime > 0 && time.Now().Sub(m.lastConnect) > wifiRestartTime {
+			if wifiRestartTime > 0 && time.Since(m.lastConnect) > wifiRestartTime {
 				if err := restartWifi(cmd); err != nil {
 					log.Errorf("Error restarting wifi: %v", err)
 				}
@@ -367,17 +367,17 @@ func (m *mqttClient) handlePhev(cmd *cobra.Command) error {
 			if !ok {
 				log.Infof("Connection closed.")
 				updaterTicker.Stop()
-				return fmt.Errorf("Connection closed.")
+				return fmt.Errorf("connection closed")
 			}
 			switch msg.Type {
 			case protocol.CmdInBadEncoding:
-				if time.Now().Sub(lastEncodingError) > 15*time.Second {
+				if time.Since(lastEncodingError) > 15*time.Second {
 					encodingErrorCount = 0
 				}
 				if encodingErrorCount > 50 {
 					m.phev.Close()
 					updaterTicker.Stop()
-					return fmt.Errorf("Disconnecting due to too many errors")
+					return fmt.Errorf("disconnecting due to too many errors")
 				}
 				encodingErrorCount += 1
 				lastEncodingError = time.Now()
