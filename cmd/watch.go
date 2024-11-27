@@ -37,15 +37,18 @@ updates, displaying them in real-time.`,
 
 func Run(cmd *cobra.Command, args []string) {
 	address, _ := cmd.Flags().GetString("address")
+	log.Debugf("Got address for PHEV client as %s", address)
 	cl, err := client.New(client.AddressOption(address))
 	if err != nil {
 		panic(err)
 	}
 
+	log.Debug("Calling Connect() on cl")
 	if err := cl.Connect(); err != nil {
 		panic(err)
 	}
 
+	log.Debug("Calling Start() on cl")
 	if err := cl.Start(); err != nil {
 		panic(err)
 	}
@@ -55,6 +58,7 @@ func Run(cmd *cobra.Command, args []string) {
 	for {
 		select {
 		case m, ok := <-cl.Recv:
+			log.Debug("Got something on cl.Recv")
 			if !ok {
 				log.Infof("Connection closed.")
 				return

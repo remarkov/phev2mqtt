@@ -132,6 +132,7 @@ func (c *Client) RemoveListener(l *Listener) {
 
 // Close closes the client.
 func (c *Client) Close() error {
+	log.Debugf("Closing connection to %s", c.address)
 	c.closed = true
 	if c.conn == nil {
 		return nil
@@ -141,6 +142,7 @@ func (c *Client) Close() error {
 
 // Connect connects to the Phev.
 func (c *Client) Connect() error {
+	log.Debugf("Trying to connect to tcp %s", c.address)
 	conn, err := net.Dial("tcp", c.address)
 	if err != nil {
 		return err

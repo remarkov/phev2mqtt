@@ -343,13 +343,17 @@ func (m *mqttClient) handlePhev(cmd *cobra.Command) error {
 		return err
 	}
 
+	log.Debug("Calling Connect() on m.phev")
 	if err := m.phev.Connect(); err != nil {
 		return err
 	}
 
+	log.Debug("Calling Start() on m.phev")
 	if err := m.phev.Start(); err != nil {
 		return err
 	}
+
+	log.Debug("Publishing 'online' to '/available'")
 	m.client.Publish(m.topic("/available"), 0, true, "online")
 	defer func() {
 		m.lastConnect = time.Now()
@@ -362,8 +366,10 @@ func (m *mqttClient) handlePhev(cmd *cobra.Command) error {
 	for {
 		select {
 		case <-updaterTicker.C:
+			log.Debug("Setting 0x6 to 0x3 in updateTicker")
 			m.phev.SetRegister(0x6, []byte{0x3})
 		case msg, ok := <-m.phev.Recv:
+			log.Debug("Got something on m.phev.Recv")
 			if !ok {
 				log.Infof("Connection closed.")
 				updaterTicker.Stop()
