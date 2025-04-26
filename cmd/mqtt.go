@@ -53,28 +53,43 @@ more details on the topics.
 // Tracks complete climate state as on and mode are separately
 // sent by the car.
 type climate struct {
-	state *bool
+	state *protocol.PreACState
 	mode  *string
 }
 
 func (c *climate) setMode(m string) {
 	c.mode = &m
 }
-func (c *climate) setState(state bool) {
+func (c *climate) setState(state protocol.PreACState) {
 	c.state = &state
 }
 
 func (c *climate) mqttStates() map[string]string {
 	m := map[string]string{
+		"/climate/state":      "off",
 		"/climate/cool":       "off",
 		"/climate/heat":       "off",
 		"/climate/windscreen": "off",
-		"/climate/mode":       "off",
 	}
-	if !c.ready() || !*c.state {
+	if c.mode == nil || c.state == nil {
 		return m
 	}
-	m["/climate/mode"] = *c.mode
+	switch *c.state {
+	case protocol.PreACOn: m["/climate/state"] = *c.mode
+	case protocol.PreACOff: {
+		m["/climate/state"] = "off"
+		return m
+	}
+	case protocol.PreACTerminated: {
+		m["/climate/state"] = "terminated"
+		return m
+	}
+	default: {
+		m["/climate/state"] = "unknown"
+		return m
+	}
+	}
+	m["/climate/state"] = *c.mode
 	switch *c.mode {
 	case "cool":
 		m["/climate/cool"] = "on"
@@ -84,10 +99,6 @@ func (c *climate) mqttStates() map[string]string {
 		m["/climate/windscreen"] = "on"
 	}
 	return m
-}
-
-func (c *climate) ready() bool {
-	return c.mode != nil && c.state != nil
 }
 
 var lastWifiRestart time.Time
@@ -127,6 +138,7 @@ type mqttClient struct {
 
 	phev        *client.Client
 	lastConnect time.Time
+	everPublishedBatteryLevel bool
 
 	prefix string
 
@@ -179,6 +191,9 @@ func (m *mqttClient) Run(cmd *cobra.Command, args []string) error {
 		return token.Error()
 	}
 	if token := m.client.Subscribe(m.topic("/connection"), 0, nil); token.Wait() && token.Error() != nil {
+		return token.Error()
+	}
+	if token := m.client.Subscribe(m.topic("/settings/#"), 0, nil); token.Wait() && token.Error() != nil {
 		return token.Error()
 	}
 
@@ -274,12 +289,20 @@ func (m *mqttClient) handleIncomingMqtt(mqtt_client mqtt.Client, msg mqtt.Messag
 			log.Infof("Error setting register 0x17: %v", err)
 			return
 		}
+	} else if strings.HasPrefix(msg.Topic(), m.topic("/set/climate/state")) {
+		payload := strings.ToLower(string(msg.Payload()))
+		if payload == "reset" {
+			if err := m.phev.SetRegister(protocol.SetAckPreACTermRegister, []byte{0x1}); err != nil {
+				log.Infof("Error acknowledging Pre-AC termination: %v", err)
+				return
+			}
+		}
 	} else if strings.HasPrefix(msg.Topic(), m.topic("/set/climate/")) {
 		topic := msg.Topic()
 		payload := strings.ToLower(string(msg.Payload()))
 
 		modeMap := map[string]byte{"off": 0x0, "OFF": 0x0, "cool": 0x1, "heat": 0x2, "windscreen": 0x3, "mode": 0x4}
-		durMap := map[string]byte{"10": 0x0, "20": 0x10, "30": 0x20, "on": 0x0, "off": 0x0}
+		durMap := map[string]byte{"10": 0x0, "20": 0x1, "30": 0x2, "on": 0x0, "off": 0x0}
 		parts := strings.Split(topic, "/")
 		mode, ok := modeMap[parts[len(parts)-1]]
 		if !ok {
@@ -329,6 +352,10 @@ func (m *mqttClient) handleIncomingMqtt(mqtt_client mqtt.Client, msg mqtt.Messag
 				return
 			}
 		}
+	} else if msg.Topic() == m.topic("/settings/dump") {
+		log.Infof("CURRENT_SETTINGS:")
+		log.Infof("\n%s", m.phev.Settings.Dump())
+		m.phev.Settings.Clear()
 	} else {
 		log.Errorf("Unknown topic from mqtt: %s", msg.Topic())
 	}
@@ -355,6 +382,7 @@ func (m *mqttClient) handlePhev(cmd *cobra.Command) error {
 
 	log.Debug("Publishing 'online' to '/available'")
 	m.client.Publish(m.topic("/available"), 0, true, "online")
+	m.everPublishedBatteryLevel = false
 	defer func() {
 		m.lastConnect = time.Now()
 	}()
@@ -428,8 +456,8 @@ func (m *mqttClient) publishRegister(msg *protocol.PhevMessage) {
 		for t, p := range m.climate.mqttStates() {
 			m.publish(t, p)
 		}
-	case *protocol.RegisterACOperStatus:
-		m.climate.setState(reg.Operating)
+	case *protocol.RegisterPreACState:
+		m.climate.setState(reg.State)
 		for t, p := range m.climate.mqttStates() {
 			m.publish(t, p)
 		}
@@ -448,8 +476,16 @@ func (m *mqttClient) publishRegister(msg *protocol.PhevMessage) {
 		m.publish("/door/boot", boolOpen[reg.Boot])
 		m.publish("/lights/head", boolOnOff[reg.Headlights])
 	case *protocol.RegisterBatteryLevel:
-		m.publish("/battery/level", fmt.Sprintf("%d", reg.Level))
+		if !m.everPublishedBatteryLevel || reg.Level > 5 {
+			m.everPublishedBatteryLevel = true
+			m.publish("/battery/level", fmt.Sprintf("%d", reg.Level))
+		} else {
+			log.Debugf("Ignoring battery level reading: %v", reg.Level)
+		}
 		m.publish("/lights/parking", boolOnOff[reg.ParkingLights])
+	case *protocol.RegisterLightStatus:
+		m.publish("/lights/interior", boolOnOff[reg.Interior])
+		m.publish("/lights/hazard", boolOnOff[reg.Hazard])
 	case *protocol.RegisterChargePlug:
 		if reg.Connected {
 			m.publish("/charge/plug", "connected")
