@@ -5,6 +5,7 @@ CONFIG_PATH=/data/options.json
 export mqtt_server="$(bashio::config 'mqtt_server')"
 export mqtt_user="$(bashio::config 'mqtt_user')"
 export mqtt_password="$(bashio::config 'mqtt_password')"
+export ha_discovery_prefix="$(bashio::config 'ha_discovery_prefix')"
 export debug="$(bashio::config 'debug')"
 
 if [[ $debug == "true" ]]
@@ -19,7 +20,7 @@ echo Starting phev2mqtt
         client \
         mqtt \
         -v debug \
-        --mqtt_server "tcp://${mqtt_server}/" \
-        --mqtt_username "${mqtt_user}" \
-        --mqtt_password "${mqtt_password}"
-
+        --mqtt_server="tcp://${mqtt_server}/" \
+        --mqtt_username="${mqtt_user}" \
+        --mqtt_password="${mqtt_password}" \
+        --ha_discovery_prefix="${ha_discovery_prefix}"
